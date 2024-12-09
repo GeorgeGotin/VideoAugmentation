@@ -21,7 +21,7 @@ from itertools import product
 
 from tools_io import y4m_reader, y4m_writer
 
-# много лишнего
+#много лишнего
 
 # Function to read YUV 4:2:0 frame and convert it to RGB
 

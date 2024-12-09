@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 
 
 class Abstract(ABC):
-    def __init__(self):
-        self.filter = None
+    def __init__(self, shape):
+        self.shape = shape
         self.params = {}
 
     @abstractmethod
@@ -15,6 +15,8 @@ class Abstract(ABC):
             filter: filter that is going to be applied to the rgb image
             params: dictionary to change the parameters.
         '''
+        for key, value in params.items():
+            self.__setattr__(key, value)
         return
 
     @abstractmethod
@@ -28,7 +30,7 @@ class Abstract(ABC):
         return self.params
 
     @abstractmethod
-    def apply_filter(self, frame):
+    def apply_filter(self, video_stream):
         """
         Processes the given video
         """
@@ -44,7 +46,7 @@ class Abstract(ABC):
         pass
 
     @abstractmethod
-    def get_params_info(self, **idk_yet):
+    def get_params_info():
         """
         Gets the parameters information and their ranges associated with the video processing.
 

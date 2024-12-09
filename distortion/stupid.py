@@ -7,8 +7,8 @@ class Stupid(Abstract):
         Adds constant shift to each color
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, shape):
+        super().__init__(shape)
 
     def set_params(self, a, b, c, **params):
         self.a = a
@@ -18,11 +18,12 @@ class Stupid(Abstract):
     def get_params(self):
         return {s: self.__getattribute__(s) for s in 'abc'}
 
-    def get_params_info(self):
+    @staticmethod
+    def get_params_info():
         info = {
-            'a': (int, [-125, 125], "Added to the first (red) chennel"),
-            'b': (int, [-125, 125], "Added to the second (green) chennel"),
-            'c': (int, [-125, 125], "Added to the third (blue) chennel"),
+            'a': {'type': int, 'range': [-0.5, 0.5], 'info': "Added to the first (red,'default' : 0.0} chennel", 'default': 0.0},
+            'b': {'type': int, 'range': [-0.5, 0.5], 'info': "Added to the second (green,'default' : 0.0} chennel", 'default': 0.0},
+            'c': {'type': int, 'range': [-0.5, 0.5], 'info': "Added to the third (blue,'default' : 0.0} chennel", 'default': 0.0},
         }
         return info
 
@@ -33,5 +34,11 @@ class Stupid(Abstract):
         frame2[..., 2] += self.c
         return frame2
 
-    def get_objective(self, trial, **rest):
-        return super().get_objective(trial, **rest)
+    def get_objective(self, video_stream, needed_psnr):
+        def func(trial):
+            a = trial.suggest_float('a', -0.5, 0.5, log=False, step=None)
+            b = trial.suggest_float('b', -0.5, 0.5, log=False, step=None)
+            c = trial.suggest_float('c', -0.5, 0.5, log=False, step=None)
+            self.set_params(a, b, c)
+
+        return func

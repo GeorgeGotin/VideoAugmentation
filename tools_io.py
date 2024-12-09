@@ -2,36 +2,6 @@ import numpy as np
 import cv2
 import os
 
-
-def read_yuv_frame(f, width, height):
-    """
-    f - filestream, from which reading perfomance
-    width - size, width of video frame
-    height - size, height of video frame
-
-    """
-    frame_size = width * height + (width // 2) * (height // 2) * 2
-    yuv_frame = f.read(frame_size)
-    if len(yuv_frame) < frame_size:
-        return None, None
-
-    # Separate Y, U, and V channels
-    Y = np.frombuffer(yuv_frame[0:width*height], dtype=np.uint8).reshape((height, width))
-    U = np.frombuffer(yuv_frame[width*height:width*height + (width//2)
-                      * (height//2)], dtype=np.uint8).reshape((height//2, width//2))
-    V = np.frombuffer(yuv_frame[width*height + (width//2)*(height//2):],
-                      dtype=np.uint8).reshape((height//2, width//2))
-
-    # Upsample U and V to match Y's resolution
-    U_up = cv2.resize(U, (width, height))  # , interpolation=cv2.INTER_LINEAR)
-    V_up = cv2.resize(V, (width, height))  # , interpolation=cv2.INTER_LINEAR)
-
-    # Merge Y, U, V into a YUV image and convert to RGB
-    yuv_img = cv2.merge([Y, U_up, V_up])
-    rgb_img = cv2.cvtColor(yuv_img, cv2.COLOR_YUV2RGB)
-
-    return rgb_img, yuv_img
-
 # Function to write YUV 4:2:0 frame
 
 
@@ -67,22 +37,70 @@ class y4m_reader:
         self.width = int(header.split(b'W')[1].split(b' ')[0])
         self.height = int(header.split(b'H')[1].split(b' ')[0])
         self.fps = str(header.split(b'F')[1].split(b' ')[0], 'utf-8')
-        # n_bytes =
+        self.frame_size = self.width * self.height + (self.width // 2) * (self.height // 2) * 2
+        self.shape = (self.height, self.width, 3)
+        n_bytes = input_file.seek(0, 2)
+        self.length = (n_bytes - len(header)) // (len('FRAME\n') + self.frame_size)
         input_file.close()
+
+    def read_yuv_frame(self, f):
+        """
+        f - filestream, from which reading perfomance
+        width - size, width of video frame
+        height - size, height of video frame
+
+        """
+        yuv_frame = f.read(self.frame_size)
+        if len(yuv_frame) < self.frame_size:
+            return None
+
+        # Separate Y, U, and V channels
+        Y = np.frombuffer(yuv_frame[0:self.width*self.height],
+                          dtype=np.uint8).reshape((self.height, self.width))
+        U = np.frombuffer(yuv_frame[self.width*self.height:self.width*self.height + (self.width//2)
+                                    * (self.height//2)], dtype=np.uint8).reshape((self.height//2, self.width//2))
+        V = np.frombuffer(yuv_frame[self.width*self.height + (self.width//2)*(self.height//2):],
+                          dtype=np.uint8).reshape((self.height//2, self.width//2))
+
+        # Upsample U and V to match Y's resolution
+        U_up = cv2.resize(U, (self.width, self.height))  # , interpolation=cv2.INTER_LINEAR)
+        V_up = cv2.resize(V, (self.width, self.height))  # , interpolation=cv2.INTER_LINEAR)
+
+        # Merge Y, U, V into a YUV image and convert to RGB
+        yuv_img = cv2.merge([Y, U_up, V_up])
+        rgb_img = cv2.cvtColor(yuv_img, cv2.COLOR_YUV2RGB)
+
+        return (rgb_img / 255).astype(np.float32)
 
     def iter_frame(self):
         input_file = open(self.path, 'rb')
         input_file.readline()
-        while True:
+        eof = False
+        # counter = 0
+        # rgb_sum = np.empty((n, self.height, self.width, 3), dtype=np.float32)
+        while not eof:
             input_file.readline()
-            rgb, yuv = read_yuv_frame(input_file, self.width, self.height)
+            rgb = self.read_yuv_frame(input_file)
             if rgb is None:
-                input_file.close()
-                return StopIteration
-            yield rgb, yuv
+                eof = True
+                break
+            yield rgb
+
+            # rgb_sum[counter] = rgb
+            # counter += 1
+            # if counter == n:
+            #     counter = 0
+            #     yield rgb_sum
+
+        # yield rgb_sum
+        input_file.close()
+        return StopIteration
 
     def __iter__(self):
         return self.iter_frame()
+
+    def __len__(self):
+        return self.length
 
 
 class y4m_writer:
@@ -98,7 +116,8 @@ class y4m_writer:
         assert h == self.height
         assert w == self.width
         self.output_file.write(bytes('FRAME \n', 'utf-8'))
-        yuv_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2YUV)
+        yuv_frame = cv2.cvtColor(np.clip(np.round(frame*255), 0,
+                                 255).astype(np.uint8), cv2.COLOR_RGB2YUV)
         write_yuv_frame(self.output_file, yuv_frame)
 
     def close(self):
