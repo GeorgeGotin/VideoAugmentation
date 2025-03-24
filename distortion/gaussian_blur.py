@@ -10,7 +10,7 @@ class Gaussian_Blur(Abstract):
         self.filter = A.gaussian_blur
 
     def set_params(self, ksize, sigma, *args, **kwargs):
-        self.kernel_size = ksize
+        self.ksize = ksize
         self.sigma = sigma
 
     def get_params(self):
@@ -18,15 +18,18 @@ class Gaussian_Blur(Abstract):
 
     def apply_filter(self, frame):
         frame = frame.copy()
-        return self.filter(frame, ksize=self.ksize, sigma=self.sigma)
+        return self.filter(frame, ksize=int(self.ksize), sigma=self.sigma)
 
     def get_objective(self, trial, **rest):
         return super().get_objective(trial, **rest)
+    
+    def suggester(self, trial):
+        ksize = trial.suggest_int('ksize', )
 
     @staticmethod
     def get_params_info():
         info = {
-            'ksize': {'type': int, 'range': [1, float('inf'), 2], 'info': "kernel size of filter", 'default': 15},
-            'sigma': {'type': float, 'range': [0, float('inf')], 'info': "sigma value of filter", 'default': 5},
+            'ksize': {'type': int, 'range': [1, 1e10, 2], 'info': "kernel size of filter", 'default': 15},
+            'sigma': {'type': float, 'range': [0, 1e10, None], 'info': "sigma value of filter", 'default': 5},
         }
         return info

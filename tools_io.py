@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import os
+import pathlib
 
 # Function to write YUV 4:2:0 frame
 
@@ -122,3 +123,13 @@ class y4m_writer:
 
     def close(self):
         self.output_file.close()
+
+
+def write_y4m(video, file):
+    video = np.array(video).transpose((0, 2, 3, 1))
+    path = pathlib.Path(file)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    writer = y4m_writer(file, video.shape[2], video.shape[1], '25:1')
+    for frame in video:
+        writer.write_frame(frame)
+    writer.close()
